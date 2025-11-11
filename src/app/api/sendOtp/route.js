@@ -4,7 +4,7 @@ import otpStore from "@/app/utils/otpstore";
 export async function POST(req) {
   try {
     const { email } = await req.json();
-    const COMPANY_EMAIL = process.env.COMPANY_EMAIL; 
+    const COMPANY_EMAIL = process.env.EMAIL_USERNAME; 
 
     if (email !== COMPANY_EMAIL) {
       return NextResponse.json(

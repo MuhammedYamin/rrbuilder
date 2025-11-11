@@ -34,7 +34,7 @@ export async function POST(req) {
 
     let transporter = nodemailer.createTransport({
       host: process.env.EMAIL_HOST,
-      port: process.env.EMAIL_PORT || 465,
+      port: parseInt(process.env.EMAIL_PORT) || 465,
       secure: process.env.EMAIL_SECURE === "true",
       auth: {
         user: process.env.EMAIL_USERNAME,
