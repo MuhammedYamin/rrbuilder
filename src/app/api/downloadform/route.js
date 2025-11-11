@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
-import otpStore from "@/app/utils/otpStore";
+import otpStore from "@/app/utils/otpstore";
 
 export async function POST(req) {
   try {
