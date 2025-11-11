@@ -3,9 +3,16 @@ import fs from "fs";
 import path from "path";
 import ExcelJS from "exceljs";
 import nodemailer from "nodemailer";
+import { createClient } from '@supabase/supabase-js';
+
+
 
 export async function POST(req) {
   try {
+    const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
     const formData = await req.json(); 
 
     const filePath = path.join(process.cwd(), "private", "contacts.xlsx");
@@ -30,7 +37,7 @@ export async function POST(req) {
       new Date().toLocaleString(),
     ]);
 
-    await workbook.xlsx.writeFile(filePath);
+const buffer = await workbook.xlsx.writeBuffer();
 
     let transporter = nodemailer.createTransport({
       host: process.env.EMAIL_HOST,
@@ -82,6 +89,10 @@ export async function POST(req) {
       `,
     });
     
+const fileName = `contacts-${Date.now()}.xlsx`;
+    const { error } = await supabase.storage
+      .from('rrbuilder-contacts')          //supabase bucket name
+      .upload(fileName, buffer, { contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
 
     return NextResponse.json(
       { message: "Form submitted successfully!" },
