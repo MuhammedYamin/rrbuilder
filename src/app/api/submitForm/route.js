@@ -88,11 +88,12 @@ const buffer = await workbook.xlsx.writeBuffer();
       `,
     });
     
-const fileName = `contacts-${Date.now()}.xlsx`;
+const fileName = `contacts.xlsx`;
     const { error } = await supabase.storage
       .from('rrbuilder-contacts')          //supabase bucket name
       .upload(fileName, buffer, { contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
 
+      if (error) throw error;
     return NextResponse.json(
       { message: "Form submitted successfully!" },
       { status: 200 },
