@@ -21,6 +21,8 @@ export async function POST(req) {
     let workbook = new ExcelJS.Workbook();
     const { data: existingFile, error: downloadError } = await supabase.storage.from(bucket).download(fileName);
 
+    
+
     if (downloadError && downloadError.status !== 404) {
       // unexpected error
       throw downloadError;
@@ -48,7 +50,7 @@ export async function POST(req) {
     ]);
 
     // write workbook to buffer (in-memory)
-    const buffer = await workbook.xlsx.writeBuffer();
+const bufferData = Buffer.from(await workbook.xlsx.writeBuffer());
 
     // Send notification email (same as before)
     let transporter = nodemailer.createTransport({
