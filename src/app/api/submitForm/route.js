@@ -27,11 +27,12 @@ export async function POST(req) {
     }
 
     if (existingFile) {
-      // load existing workbook from the downloaded file buffer
-      const arr = await existingFile.arrayBuffer();
-      await workbook.xlsx.load(Buffer.from(arr));
+      // Node.js: convert stream to buffer
+      const chunks = [];
+      for await (const chunk of existingFile) chunks.push(chunk);
+      const fileBuffer = Buffer.concat(chunks);
+      await workbook.xlsx.load(fileBuffer);
     } else {
-      // create a new workbook and worksheet with header row
       const worksheet = workbook.addWorksheet("Contacts");
       worksheet.addRow(["Name", "Phone", "Project", "Message", "Date"]);
     }
