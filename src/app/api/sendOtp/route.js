@@ -16,7 +16,7 @@ export async function POST(req) {
     const OTP = Math.floor(100000 + Math.random() * 900000);
     const expiresAt = Date.now() + 5 * 60 * 1000; 
 
-    otpStore.set(email, { OTP, expiresAt });
+    await otpStore.set(email, { OTP, expiresAt });
 
 
 

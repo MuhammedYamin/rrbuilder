@@ -1,29 +1,39 @@
 import { NextResponse } from "next/server";
-import fs from "fs";
-import path from "path";
 import ExcelJS from "exceljs";
 import nodemailer from "nodemailer";
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = 'https://fqvnthjeclpjuvbhfrfn.supabase.co'
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-const supabase = createClient(supabaseUrl, supabaseKey)
+export const runtime = "nodejs"; // ensure Node runtime so process.env and nodemailer/ExcelJS work
+
+const supabaseUrl = 'https://fqvnthjeclpjuvbhfrfn.supabase.co';
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY; 
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 
 export async function POST(req) {
   try {
     const formData = await req.json(); 
 
-    const filePath = path.join(process.cwd(), "private", "contacts.xlsx");
+    const fileName = `contacts.xlsx`;
+    const bucket = 'rrbuilder-contacts';
 
-    let workbook;
-    if (fs.existsSync(filePath)) {
-      workbook = new ExcelJS.Workbook();
-      await workbook.xlsx.readFile(filePath);
+    // Try to download existing file from Supabase Storage
+    let workbook = new ExcelJS.Workbook();
+    const { data: existingFile, error: downloadError } = await supabase.storage.from(bucket).download(fileName);
+
+    if (downloadError && downloadError.status !== 404) {
+      // unexpected error
+      throw downloadError;
+    }
+
+    if (existingFile) {
+      // load existing workbook from the downloaded file buffer
+      const arr = await existingFile.arrayBuffer();
+      await workbook.xlsx.load(Buffer.from(arr));
     } else {
-      workbook = new ExcelJS.Workbook();
+      // create a new workbook and worksheet with header row
       const worksheet = workbook.addWorksheet("Contacts");
-      worksheet.addRow(["Name", "Phone", "Project", "Message", "Date"]); 
+      worksheet.addRow(["Name", "Phone", "Project", "Message", "Date"]);
     }
 
     const worksheet = workbook.getWorksheet("Contacts");
@@ -36,8 +46,10 @@ export async function POST(req) {
       new Date().toLocaleString(),
     ]);
 
-const buffer = await workbook.xlsx.writeBuffer();
+    // write workbook to buffer (in-memory)
+    const buffer = await workbook.xlsx.writeBuffer();
 
+    // Send notification email (same as before)
     let transporter = nodemailer.createTransport({
       host: process.env.EMAIL_HOST,
       port: parseInt(process.env.EMAIL_PORT) || 465,
@@ -87,13 +99,17 @@ const buffer = await workbook.xlsx.writeBuffer();
         <p><strong>Best regards,</strong><br>RR Builder</p>
       `,
     });
-    
-const fileName = `contacts.xlsx`;
-    const { error } = await supabase.storage
-      .from('rrbuilder-contacts')          //supabase bucket name
-      .upload(fileName, buffer, { contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
 
-      if (error) throw error;
+    // Upload updated file to Supabase Storage, upsert=true to overwrite existing file
+    const { error: uploadError } = await supabase.storage
+      .from(bucket)
+      .upload(fileName, buffer, {
+        contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        upsert: true,
+      });
+
+    if (uploadError) throw uploadError;
+
     return NextResponse.json(
       { message: "Form submitted successfully!" },
       { status: 200 },
