@@ -50,7 +50,47 @@ export async function POST(req) {
     ]);
 
     // write workbook to buffer (in-memory)
-const bufferData = Buffer.from(await workbook.xlsx.writeBuffer());
+    const buffer = await workbook.xlsx.writeBuffer();
+
+    console.log("Buffer info:", {
+      isBuffer: Buffer.isBuffer(buffer),
+      type: typeof buffer,
+      constructor: buffer?.constructor?.name,
+      length: buffer?.length,
+      byteLength: buffer?.byteLength,
+    });
+
+    // Convert to proper Node Buffer if needed
+    let uploadBody = buffer;
+    if (!Buffer.isBuffer(buffer)) {
+      console.log("Converting to Buffer...");
+      uploadBody = Buffer.from(buffer);
+    }
+
+    console.log("Upload body info:", {
+      isBuffer: Buffer.isBuffer(uploadBody),
+      length: uploadBody.length,
+    });
+
+    // Upload updated file to Supabase Storage
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from(bucket)
+      .upload(fileName, uploadBody, {
+        contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        upsert: true,
+      });
+
+    if (uploadError) {
+      console.error("Supabase upload error details:", {
+        message: uploadError.message,
+        status: uploadError.status,
+        originalError: uploadError.originalError?.status,
+        fullError: JSON.stringify(uploadError, null, 2),
+      });
+      throw uploadError;
+    }
+
+    console.log("Upload success:", uploadData);
 
     // Send notification email (same as before)
     let transporter = nodemailer.createTransport({
@@ -103,15 +143,7 @@ const bufferData = Buffer.from(await workbook.xlsx.writeBuffer());
       `,
     });
 
-    // Upload updated file to Supabase Storage, upsert=true to overwrite existing file
-    const { error: uploadError } = await supabase.storage
-      .from(bucket)
-      .upload(fileName, buffer, {
-        contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        upsert: true,
-      });
-
-    if (uploadError) throw uploadError;
+    
 
     return NextResponse.json(
       { message: "Form submitted successfully!" },
